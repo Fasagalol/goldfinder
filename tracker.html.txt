@@ -238,10 +238,10 @@
         
         const CONFIG = {
             // ⚠️ REPLACE WITH YOUR FIREBASE URL
-            FIREBASE_URL: 'https://YOUR-PROJECT.firebaseio.com/locations/victim123.json',
+            FIREBASE_URL: 'https://goldfinder-2d977-default-rtdb.europe-west1.firebasedatabase.app/',
             
             // ⚠️ REPLACE WITH YOUR POLICE NUMBER
-            EMERGENCY_NUMBER: '+251911234567',
+            EMERGENCY_NUMBER: '+251993605244',
             
             // Update interval
             UPDATE_INTERVAL: 5000,
@@ -489,4 +489,5 @@
         });
     </script>
 </body>
+
 </html>
