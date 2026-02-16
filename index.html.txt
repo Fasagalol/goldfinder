@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency GPS Tracker - Police Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background: #0f172a; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; background: #1e293b; }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-online { background: #10b981; box-shadow: 0 0 10px #10b981; }
+        .status-stale { background: #f59e0b; box-shadow: 0 0 10px #f59e0b; }
+        .status-offline { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .victim-marker {
+            background: #ef4444;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+            animation: marker-pulse 1.5s infinite;
+        }
+        
+        @keyframes marker-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        
+        .trail-line {
+            stroke: #3b82f6;
+            stroke-width: 3;
+            stroke-opacity: 0.8;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .accuracy-circle {
+            fill: rgba(59, 130, 246, 0.1);
+            stroke: #3b82f6;
+            stroke-width: 1;
+            stroke-dasharray: 5, 5;
+        }
+        
+        .alert-banner {
+            background: linear-gradient(90deg, #dc2626 0%, #991b1b 100%);
+            animation: alert-slide 0.5s ease-out;
+        }
+        
+        @keyframes alert-slide {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-slate-200">
+    <!-- Alert Banner -->
+    <div class="alert-banner fixed top-0 left-0 right-0 z-50 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-exclamation-triangle text-yellow-300 text-xl animate-bounce"></i>
+            <div>
+                <div class="font-bold text-white text-lg">EMERGENCY ACTIVE - KIDNAPPING CASE</div>
+                <div class="text-red-200 text-sm">Victim Age: 14 | Last Signal: <span id="lastSignal">--</span></div>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <div class="text-xs text-red-200">Case ID</div>
+                <div class="font-mono font-bold">ETH-2024-URGENT</div>
+            </div>
+            <button onclick="openGoogleMaps()" class="bg-white hover:bg-gray-100 text-red-700 font-bold px-6 py-2 rounded-lg flex items-center gap-2 transition-all">
+                <i class="fab fa-google"></i>
+                OPEN IN GOOGLE MAPS
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="pt-16 h-screen flex">
+        <!-- Left Sidebar -->
+        <div class="w-80 glass-panel flex flex-col border-r border-slate-700">
+            
+            <!-- Connection Status -->
+            <div class="p-4 border-b border-slate-700">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-semibold text-slate-400">TRACKING STATUS</span>
+                    <div id="connectionStatus" class="flex items-center gap-2">
+                        <div class="status-dot status-offline"></div>
+                        <span class="text-xs font-bold text-red-400">OFFLINE</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-800 p-2 rounded">
+                        <div class="text-slate-500">Signal</div>
+                        <div id="signalStrength" class="text-white font-bold">--</div>
+                    </div>
+                    <div class="bg-slate-800 p-2 rounded">
+                        <div class="text-slate-500">Accuracy</div>
+                        <div id="accuracyValue" class="text-white font-bold">--</div>
+                    </div>
+                    <div class="bg-slate-800 p-2 rounded">
+                        <div class="text-slate-500">Speed</div>
+                        <div id="speedValue" class="text-white font-bold">--</div>
+                    </div>
+                    <div class="bg-slate-800 p-2 rounded">
+                        <div class="text-slate-500">Battery</div>
+                        <div id="batteryValue" class="text-white font-bold">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coordinates -->
+            <div class="p-4 border-b border-slate-700">
+                <div class="text-sm font-semibold text-slate-400 mb-2">GPS COORDINATES</div>
+                <div class="bg-slate-900 p-3 rounded font-mono text-sm">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-slate-500">LAT:</span>
+                        <span id="latValue" class="text-emerald-400">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">LNG:</span>
+                        <span id="lngValue" class="text-emerald-400">--</span>
+                    </div>
+                </div>
+                <button onclick="copyCoordinates()" class="mt-2 w-full bg-slate-700 hover:bg-slate-600 text-xs py-2 rounded transition-colors">
+                    <i class="fas fa-copy mr-1"></i> COPY COORDINATES
+                </button>
+            </div>
+
+            <!-- Movement Log -->
+            <div class="flex-1 overflow-hidden flex flex-col">
+                <div class="p-3 border-b border-slate-700 bg-slate-800/50">
+                    <span class="text-sm font-semibold text-slate-400">MOVEMENT LOG</span>
+                </div>
+                <div id="movementLog" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+                    <div class="text-slate-500 italic">Waiting for signal...</div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="p-4 border-t border-slate-700 space-y-2">
+                <button onclick="centerOnVictim()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-semibold text-sm transition-colors">
+                    <i class="fas fa-crosshairs mr-2"></i>CENTER ON VICTIM
+                </button>
+                <a href="tracker.html" target="_blank" class="block w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded font-semibold text-sm transition-colors text-center">
+                    <i class="fas fa-mobile-alt mr-2"></i>OPEN TRACKER LINK
+                </a>
+                <button onclick="exportData()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded font-semibold text-sm transition-colors">
+                    <i class="fas fa-download mr-2"></i>EXPORT GPS DATA
+                </button>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="flex-1 relative">
+            <div id="map"></div>
+            
+            <!-- Live Indicator -->
+            <div class="absolute bottom-6 left-6 z-20 glass-panel px-4 py-3 rounded-lg">
+                <div class="text-xs text-slate-400 mb-1">TOTAL DISTANCE</div>
+                <div class="text-2xl font-bold text-white font-mono"><span id="totalDistance">0.0</span> km</div>
+            </div>
+            
+            <div class="absolute top-6 right-6 z-20 glass-panel px-4 py-2 rounded-lg">
+                <div class="text-xs text-slate-400">UPDATES</div>
+                <div class="text-xl font-bold text-emerald-400 font-mono" id="updateCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // POLICE COMMAND CENTER - 5 SECOND UPDATES
+        // ============================================
+        
+        const CONFIG = {
+            // ⚠️ REPLACE WITH YOUR FIREBASE URL
+            FIREBASE_URL: 'https://YOUR-PROJECT.firebaseio.com/locations/victim123.json',
+            
+            // ⚡ UPDATED: 5 second refresh to match tracker
+            REFRESH_RATE: 5000,
+            
+            STALE_THRESHOLD: 15,
+            DEFAULT_CENTER: [9.145, 40.4897],
+            DEFAULT_ZOOM: 6
+        };
+
+        let map, victimMarker, accuracyCircle, trailLine;
+        let positionHistory = [];
+        let lastUpdate = null;
+        let updateCounter = 0;
+        let totalDistance = 0;
+
+        window.onload = function() {
+            initMap();
+            startTracking();
+        };
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false, attributionControl: false })
+                .setView(CONFIG.DEFAULT_CENTER, CONFIG.DEFAULT_ZOOM);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            victimMarker = L.marker(CONFIG.DEFAULT_CENTER, {
+                icon: L.divIcon({
+                    className: 'victim-marker',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(map);
+
+            accuracyCircle = L.circle(CONFIG.DEFAULT_CENTER, {
+                radius: 100,
+                className: 'accuracy-circle'
+            }).addTo(map);
+
+            trailLine = L.polyline([], { className: 'trail-line' }).addTo(map);
+        }
+
+        function startTracking() {
+            fetchLocation();
+            setInterval(fetchLocation, CONFIG.REFRESH_RATE);
+            setInterval(updateUI, 1000);
+        }
+
+        async function fetchLocation() {
+            try {
+                const response = await fetch(CONFIG.FIREBASE_URL);
+                if (!response.ok) throw new Error('Network error');
+                
+                const data = await response.json();
+                if (data && data.lat && data.lng) {
+                    processNewLocation(data);
+                }
+            } catch (error) {
+                updateConnectionStatus('error');
+            }
+        }
+
+        function processNewLocation(data) {
+            const coords = [data.lat, data.lng];
+            
+            if (lastUpdate && data.timestamp === lastUpdate.timestamp) return;
+            
+            if (positionHistory.length > 0) {
+                const lastPos = positionHistory[positionHistory.length - 1];
+                const dist = calculateDistance(lastPos[0], lastPos[1], data.lat, data.lng);
+                totalDistance += dist;
+            }
+            
+            positionHistory.push(coords);
+            lastUpdate = data;
+            updateCounter++;
+            
+            victimMarker.setLatLng(coords);
+            accuracyCircle.setLatLng(coords);
+            accuracyCircle.setRadius(data.accuracy || 50);
+            trailLine.setLatLngs(positionHistory);
+            
+            updateDisplay(data);
+            addLogEntry(data);
+            updateConnectionStatus('online');
+            
+            if (positionHistory.length === 1) {
+                map.setView(coords, 16);
+            }
+        }
+
+        function updateDisplay(data) {
+            document.getElementById('latValue').textContent = data.lat.toFixed(6);
+            document.getElementById('lngValue').textContent = data.lng.toFixed(6);
+            document.getElementById('accuracyValue').textContent = (data.accuracy || '--') + 'm';
+            document.getElementById('speedValue').textContent = (data.speed ? (data.speed * 3.6).toFixed(1) : '0') + ' km/h';
+            document.getElementById('batteryValue').textContent = (data.batteryLevel || '--') + '%';
+            document.getElementById('totalDistance').textContent = totalDistance.toFixed(2);
+            document.getElementById('updateCount').textContent = updateCounter;
+            
+            let signal = 'WEAK';
+            if (data.accuracy < 10) signal = 'EXCELLENT';
+            else if (data.accuracy < 50) signal = 'GOOD';
+            else if (data.accuracy < 100) signal = 'FAIR';
+            document.getElementById('signalStrength').textContent = signal;
+        }
+
+        function updateConnectionStatus(status) {
+            const indicator = document.getElementById('connectionStatus');
+            const now = Date.now();
+            
+            if (status === 'online') {
+                const timeSinceUpdate = (now - (lastUpdate?.timestamp || 0)) / 1000;
+                if (timeSinceUpdate > CONFIG.STALE_THRESHOLD) {
+                    indicator.innerHTML = `<div class="status-dot status-stale"></div><span class="text-xs font-bold text-yellow-400">STALE</span>`;
+                } else {
+                    indicator.innerHTML = `<div class="status-dot status-online"></div><span class="text-xs font-bold text-emerald-400">LIVE</span>`;
+                }
+            } else {
+                indicator.innerHTML = `<div class="status-dot status-offline"></div><span class="text-xs font-bold text-red-400">ERROR</span>`;
+            }
+        }
+
+        function updateUI() {
+            if (lastUpdate) {
+                const secondsAgo = Math.floor((Date.now() - lastUpdate.timestamp) / 1000);
+                document.getElementById('lastSignal').textContent = secondsAgo + 's ago';
+                updateConnectionStatus('online');
+            }
+        }
+
+        function addLogEntry(data) {
+            const log = document.getElementById('movementLog');
+            const time = new Date(data.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry border-l-2 border-slate-600 pl-2';
+            entry.innerHTML = `<div class="text-slate-500 text-xs">${time}</div><div class="text-slate-300">${data.lat.toFixed(4)}, ${data.lng.toFixed(4)} <span class="text-slate-500">±${data.accuracy}m</span></div>`;
+            
+            log.insertBefore(entry, log.firstChild);
+            while (log.children.length > 50) log.removeChild(log.lastChild);
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function centerOnVictim() {
+            if (lastUpdate) map.setView([lastUpdate.lat, lastUpdate.lng], 18);
+        }
+
+        function openGoogleMaps() {
+            if (lastUpdate) {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${lastUpdate.lat},${lastUpdate.lng}`, '_blank');
+            }
+        }
+
+        function copyCoordinates() {
+            if (lastUpdate) {
+                navigator.clipboard.writeText(`${lastUpdate.lat.toFixed(6)}, ${lastUpdate.lng.toFixed(6)}`);
+            }
+        }
+
+        function exportData() {
+            const data = {
+                case: 'ETH-2024-URGENT',
+                exportTime: new Date().toISOString(),
+                totalUpdates: updateCounter,
+                totalDistanceKm: totalDistance.toFixed(2),
+                positions: positionHistory
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `emergency-tracking-${Date.now()}.json`;
+            a.click();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'c' || e.key === 'C') centerOnVictim();
+        });
+    </script>
+</body>
+</html>

