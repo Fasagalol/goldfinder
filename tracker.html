@@ -238,7 +238,8 @@
         
         const CONFIG = {
             // Firebase base URL (without .json - we add it dynamically)
-            FIREBASE_BASE_URL: 'https://goldfinder-2d977-default-rtdb.europe-west1.firebasedatabase.app',
+            FIREBASE_BASE_URL: 'https://goldfinder-2d977-default-rtdb.europe-west1.firebasedatabase.app/locations/testUser.json',
+
             
             // Unique device/user ID for this tracker
             // This creates a unique path: /locations/{DEVICE_ID}
@@ -375,7 +376,7 @@
             
             try {
                 const response = await fetch(firebaseUrl, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: payload,
                     keepalive: true
@@ -389,7 +390,7 @@
                     }
                 }
             } catch (error) {
-                console.error('Fetch error:', error);
+                console.error("Firebase error:", error);;
                 // Try beacon API as backup
                 if (navigator.sendBeacon) {
                     navigator.sendBeacon(firebaseUrl, payload);
@@ -508,3 +509,4 @@
 </body>
 
 </html>
+
